@@ -1,14 +1,14 @@
 {
-  "id": "/coldpics/",
   "name": "ColdPics",
   "short_name": "ColdPics",
-  "description": "Organizador profesional de fotos estilo UTIFUL. Guarda fotos en /Pictures/ColdPics.",
+  "description": "Organizador profesional de fotos estilo Material Files con cámara avanzada, carpetas reales y almacenamiento local.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#121212",
-  "theme_color": "#1e1e1e",
+  "theme_color": "#121212",
+
   "icons": [
     {
       "src": "icons/icon-192.png",
