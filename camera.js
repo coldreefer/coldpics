@@ -1,241 +1,222 @@
 /* ============================================================
-   ColdPics Camera Module (Professional UTIFUL-style version)
-   camera.js
+   ColdPics - Cámara PRO (Flash + Switch + Full Quality)
+   Autor: ChatGPT (para Felipe Pardo)
 ============================================================ */
 
-let stream = null;
-let videoElement = null;
-let usingFrontCamera = false;
-let torchEnabled = false;
-
-/* UI hooks from index.html */
 const cameraModal = document.getElementById("cameraModal");
 const cameraView = document.getElementById("cameraView");
 const snapBtn = document.getElementById("snapBtn");
 const closeCameraBtn = document.getElementById("closeCameraBtn");
 
+let flashBtn, switchBtn;
+let cameraStream = null;
+let useTorch = false;
+let currentFacing = "environment"; // por defecto cámara trasera
 
 /* ============================================================
-   1. Abrir la cámara con opciones avanzadas
+   CREAR BOTONES EXTRA (FLASH + SWITCH)
 ============================================================ */
+function setupExtraButtons() {
+    if (document.getElementById("flashBtn")) return;
 
+    flashBtn = document.createElement("button");
+    flashBtn.id = "flashBtn";
+    flashBtn.className = "camera-extra material-symbols-rounded";
+    flashBtn.textContent = "flash_on";
+
+    switchBtn = document.createElement("button");
+    switchBtn.id = "switchBtn";
+    switchBtn.className = "camera-extra material-symbols-rounded";
+    switchBtn.textContent = "cameraswitch";
+
+    cameraModal.appendChild(flashBtn);
+    cameraModal.appendChild(switchBtn);
+
+    flashBtn.addEventListener("click", toggleFlash);
+    switchBtn.addEventListener("click", switchCamera);
+}
+
+
+/* ============================================================
+   ABRIR CÁMARA (PRO)
+============================================================ */
 async function openCamera() {
+    setupExtraButtons();
+    cameraModal.classList.remove("hidden");
+
+    await startCamera(currentFacing);
+}
+
+
+/* ============================================================
+   INICIAR STREAM CON CONFIGURACIÓN PRO
+============================================================ */
+async function startCamera(facingMode) {
+    stopCamera();
+
+    const constraints = {
+        video: {
+            facingMode,
+            width: { ideal: 4000 },
+            height: { ideal: 3000 },
+            frameRate: { ideal: 30 }
+        },
+        audio: false
+    };
+
     try {
-        if (stream) {
-            stopCamera();
-        }
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        cameraView.srcObject = cameraStream;
 
-        const constraints = {
-            audio: false,
-            video: {
-                facingMode: usingFrontCamera ? "user" : "environment",
-                width: { ideal: 1280 },
-                height: { ideal: 1920 },
-                frameRate: { ideal: 30 }
-            }
-        };
+        await enableFlashIfPossible();
 
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        cameraView.srcObject = stream;
-
-        cameraModal.classList.remove("hidden");
-
-    } catch (err) {
-        console.error("Error abriendo la cámara:", err);
-        alert("No se pudo acceder a la cámara. Da permisos.");
+    } catch (e) {
+        console.error("Error iniciando cámara:", e);
+        closeCamera();
     }
 }
 
 
 /* ============================================================
-   2. Cerrar cámara correctamente
+   CAMBIAR DE CÁMARA (FRONTAL ↔ TRASERA)
 ============================================================ */
+async function switchCamera() {
+    currentFacing =
+        currentFacing === "environment" ? "user" : "environment";
 
-function stopCamera() {
-    if (!stream) return;
+    useTorch = false;
+    if (flashBtn) flashBtn.style.opacity = currentFacing === "environment" ? "1" : "0.4";
 
-    stream.getTracks().forEach((t) => t.stop());
-    stream = null;
-    cameraView.srcObject = null;
+    await startCamera(currentFacing);
 }
 
 
 /* ============================================================
-   3. Tomar foto (800x1000, compresión pro)
+   TORCH / FLASH
 ============================================================ */
-
-async function takePhoto() {
-    if (!stream) return null;
-
-    const track = stream.getVideoTracks()[0];
-    const settings = track.getSettings();
-
-    const w = settings.width;
-    const h = settings.height;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = 800;
-    canvas.height = 1000;
-
-    const ctx = canvas.getContext("2d");
-
-    const ratio = Math.min(w / 800, h / 1000);
-    const cropWidth = 800 * ratio;
-    const cropHeight = 1000 * ratio;
-
-    const cropX = (w - cropWidth) / 2;
-    const cropY = (h - cropHeight) / 2;
-
-    ctx.drawImage(
-        cameraView,
-        cropX, cropY, cropWidth, cropHeight,
-        0, 0, 800, 1000
-    );
-
-    const blob = await new Promise((resolve) =>
-        canvas.toBlob(resolve, "image/jpeg", 0.82)
-    );
-
-    return blob;
-}
-
-
-/* ============================================================
-   4. Modo documento simple (más luminoso)
-============================================================ */
-
-async function takeDocumentPhoto() {
-    if (!stream) return null;
-
-    const track = stream.getVideoTracks()[0];
-    const settings = track.getSettings();
-
-    const w = settings.width;
-    const h = settings.height;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = 800;
-    canvas.height = 1000;
-
-    const ctx = canvas.getContext("2d");
-
-    ctx.filter = "brightness(1.15) contrast(1.1)";
-
-    ctx.drawImage(cameraView, 0, 0, 800, 1000);
-
-    const blob = await new Promise((resolve) =>
-        canvas.toBlob(resolve, "image/jpeg", 0.85)
-    );
-
-    return blob;
-}
-
-
-/* ============================================================
-   5. Modo ráfaga (toma muchas fotos sin cerrar cámara)
-============================================================ */
-
-async function takeBurst(count = 5, delay = 200) {
-    const photos = [];
-
-    for (let i = 0; i < count; i++) {
-        const blob = await takePhoto();
-        if (blob) photos.push(blob);
-        await new Promise((res) => setTimeout(res, delay));
-    }
-
-    return photos;
-}
-
-
-/* ============================================================
-   6. Cambiar cámara frontal/trasera
-============================================================ */
-
-function toggleCamera() {
-    usingFrontCamera = !usingFrontCamera;
-    openCamera();
-}
-
-
-/* ============================================================
-   7. Torch / Flash (si el dispositivo lo soporta)
-============================================================ */
-
-async function toggleTorch() {
-    if (!stream) return;
-
-    const track = stream.getVideoTracks()[0];
+async function enableFlashIfPossible() {
+    const track = cameraStream.getVideoTracks()[0];
     const capabilities = track.getCapabilities();
 
     if (!capabilities.torch) {
-        alert("Torch no está soportado en este dispositivo.");
+        flashBtn.style.opacity = "0.4"; // no soporta torch
         return;
     }
 
-    torchEnabled = !torchEnabled;
+    flashBtn.style.opacity = "1.0";
+}
 
-    await track.applyConstraints({
-        advanced: [{ torch: torchEnabled }]
-    });
+async function toggleFlash() {
+    const track = cameraStream.getVideoTracks()[0];
+    const capabilities = track.getCapabilities();
+
+    if (!capabilities.torch) return;
+
+    useTorch = !useTorch;
+
+    try {
+        await track.applyConstraints({
+            advanced: [{ torch: useTorch }]
+        });
+
+        flashBtn.textContent = useTorch ? "flash_off" : "flash_on";
+    } catch (e) {
+        console.log("Torch no disponible:", e);
+    }
 }
 
 
 /* ============================================================
-   8. Cerrar modal
+   CAPTURAR FOTO (FULL QUALITY → COMPRESIÓN 800×1000)
 ============================================================ */
+snapBtn.addEventListener("click", async () => {
+    if (!cameraStream) return;
 
-closeCameraBtn.onclick = () => {
-    cameraModal.classList.add("hidden");
+    const track = cameraStream.getVideoTracks()[0];
+    const settings = track.getSettings();
+
+    const videoWidth = settings.width;
+    const videoHeight = settings.height;
+
+    // Canvas para capturar frame nativo
+    const canvas = document.createElement("canvas");
+    canvas.width = 800;
+    canvas.height = 1000;
+
+    const ctx = canvas.getContext("2d");
+
+    const videoRatio = videoWidth / videoHeight;
+    const targetRatio = canvas.width / canvas.height;
+
+    let sw, sh, sx, sy;
+
+    if (videoRatio > targetRatio) {
+        sh = videoHeight;
+        sw = sh * targetRatio;
+        sx = (videoWidth - sw) / 2;
+        sy = 0;
+    } else {
+        sw = videoWidth;
+        sh = sw / targetRatio;
+        sx = 0;
+        sy = (videoHeight - sh) / 2;
+    }
+
+    ctx.drawImage(
+        cameraView,
+        sx, sy, sw, sh,
+        0, 0, canvas.width, canvas.height
+    );
+
+    canvas.toBlob(
+        async (blob) => {
+            if (!blob) return;
+            await savePhoto(blob);
+            closeCamera();
+        },
+        "image/jpeg",
+        0.92
+    );
+});
+
+
+/* ============================================================
+   CERRAR CÁMARA
+============================================================ */
+function stopCamera() {
+    if (!cameraStream) return;
+
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+}
+
+function closeCamera() {
     stopCamera();
-};
+    cameraModal.classList.add("hidden");
+}
+
+closeCameraBtn.addEventListener("click", closeCamera);
 
 
 /* ============================================================
-   9. Integración con el botón frío “Tomar Foto”
+   ESTILOS DE BOTONES EXTRAS (FLASH / SWITCH)
 ============================================================ */
-
-async function openCameraAndTakePhoto() {
-    await openCamera();
-
-    return new Promise((resolve) => {
-        snapBtn.onclick = async () => {
-            const photo = await takePhoto();
-            cameraModal.classList.add("hidden");
-            stopCamera();
-            resolve(photo);
-        };
-    });
+const style = document.createElement("style");
+style.innerHTML = `
+.camera-extra {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: #232323;
+    color: white;
+    border: none;
+    padding: 12px;
+    font-size: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
-
-
-/* ============================================================
-   10. Funciones de documento y ráfaga para integrar luego
-============================================================ */
-
-async function openCameraAndTakeDocument() {
-    await openCamera();
-
-    return new Promise((resolve) => {
-        snapBtn.onclick = async () => {
-            const photo = await takeDocumentPhoto();
-            cameraModal.classList.add("hidden");
-            stopCamera();
-            resolve(photo);
-        };
-    });
-}
-
-
-async function openCameraAndBurst(count = 5) {
-    await openCamera();
-
-    return new Promise((resolve) => {
-        snapBtn.onclick = async () => {
-            const photos = await takeBurst(count);
-            cameraModal.classList.add("hidden");
-            stopCamera();
-            resolve(photos);
-        };
-    });
-}
+#switchBtn { right: 80px; }
+#flashBtn { right: 20px; }
+`;
+document.head.appendChild(style);
