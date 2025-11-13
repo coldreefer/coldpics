@@ -1,76 +1,92 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>ColdPics</title>
 
-    <!-- PWA manifest -->
-    <link rel="manifest" href="manifest.json">
+    <!-- Manifest PWA -->
+    <link rel="manifest" href="manifest.json" />
 
-    <!-- Styles -->
-    <link rel="stylesheet" href="style.css">
+    <!-- Material Icons Rounded (OFICIALES) -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,400,1,0" />
 
-    <!-- Icons -->
-    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css" />
 
-    <meta name="theme-color" content="#1e1e1e">
+    <meta name="theme-color" content="#121212" />
 </head>
 
 <body>
 
-    <!-- Top bar -->
-    <header class="topbar">
-        <h1>ColdPics</h1>
-        <button id="settingsBtn" class="icon-btn">⚙️</button>
+    <!-- ===========================
+         TOP APP BAR (Material)
+    ============================ -->
+    <header class="appbar">
+        <span class="material-symbols-rounded appbar-btn" id="menuBtn">menu</span>
+        <h1 class="appbar-title">ColdPics</h1>
+        <span class="material-symbols-rounded appbar-btn" id="searchBtn">search</span>
+        <span class="material-symbols-rounded appbar-btn" id="moreBtn">more_vert</span>
     </header>
 
-    <!-- Root selection message (first time only) -->
-    <div id="rootPrompt" class="prompt hidden">
+    <!-- ===========================
+         ROOT FOLDER PROMPT
+    ============================ -->
+    <div id="rootPrompt" class="root-prompt hidden">
         <p>ColdPics necesita crear su carpeta raíz para guardar tus fotos.</p>
-        <button id="initRootBtn" class="action-btn">Crear carpeta ColdPics</button>
+        <button id="initRootBtn" class="material-btn">Crear carpeta ColdPics</button>
     </div>
 
-    <!-- Folder section -->
+    <!-- ===========================
+        LISTA DE CARPETAS (Material)
+    ============================ -->
     <section id="folderSection" class="hidden">
-        <div class="section-header">
-            <h2>Carpetas</h2>
-            <button id="addFolderBtn" class="action-btn">+ Crear Carpeta</button>
-        </div>
-
-        <ul id="folderList" class="list"></ul>
+        <ul id="folderList" class="folder-list"></ul>
     </section>
 
-    <!-- File viewer -->
+    <!-- ===========================
+        PHOTO GRID
+    ============================ -->
     <section id="photosSection" class="hidden">
-        <div class="section-header">
-            <button id="backToFolders" class="action-btn">← Volver</button>
-            <h2 id="currentFolderName"></h2>
-            <button id="takePhotoBtn" class="action-btn camera-btn">📷 Tomar Foto</button>
-        </div>
+        <header class="appbar sub-appbar">
+            <span class="material-symbols-rounded appbar-btn" id="backFolders">arrow_back</span>
+            <h1 id="currentFolderName" class="appbar-title"></h1>
+            <span class="material-symbols-rounded appbar-btn" id="deleteFolderBtn">delete</span>
+        </header>
 
         <div id="photosGrid" class="photo-grid"></div>
     </section>
 
-    <!-- Camera modal -->
+    <!-- ===========================
+         CAMERA MODAL
+    ============================ -->
     <div id="cameraModal" class="camera-modal hidden">
         <video id="cameraView" autoplay playsinline></video>
-        <button id="snapBtn" class="snap-btn">📸</button>
-        <button id="closeCameraBtn" class="close-camera">✖</button>
+        <button id="snapBtn" class="snap-btn material-symbols-rounded">photo_camera</button>
+        <button id="closeCameraBtn" class="close-camera material-symbols-rounded">close</button>
     </div>
 
-    <!-- JS Files -->
+    <!-- ===========================
+        FLOATING ACTION BUTTON (FAB)
+    ============================ -->
+    <button id="fabAddFolder" class="fab material-symbols-rounded hidden">
+        add
+    </button>
+
+    <button id="fabTakePhoto" class="fab material-symbols-rounded hidden fab-photo">
+        photo_camera
+    </button>
+
+    <!-- JS -->
     <script src="app.js"></script>
     <script src="camera.js"></script>
 
+    <!-- Register Service Worker -->
     <script>
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("service-worker.js")
-          .then(() => console.log("Service Worker registrado"))
-          .catch(err => console.error("Error registrando SW", err));
-      }
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("service-worker.js");
+        }
     </script>
-
 </body>
 </html>
