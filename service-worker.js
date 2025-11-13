@@ -6,19 +6,17 @@
 const CACHE_NAME = "coldpics-cache-v1";
 
 const FILES_TO_CACHE = [
-  "/",
-  "/index.html",
-  "/style.css",
-  "/app.js",
-  "/camera.js",
-  "/manifest.json",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png"
+  "./",
+  "./index.html",
+  "./style.css",
+  "./app.js",
+  "./camera.js",
+  "./manifest.json",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png"
 ];
 
-/* ============================================================
-   INSTALACIÓN: Cachea archivos base
-============================================================ */
+/* INSTALACIÓN */
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -29,9 +27,7 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-/* ============================================================
-   ACTIVACIÓN: Borra caches viejos
-============================================================ */
+/* ACTIVACIÓN */
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -48,18 +44,15 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-/* ============================================================
-   FETCH: Modo Offline-First
-============================================================ */
+/* FETCH */
 self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((cachedFile) => {
       return (
         cachedFile ||
         fetch(event.request).catch(() => {
-          // Offline fallback
           if (event.request.destination === "document") {
-            return caches.match("/index.html");
+            return caches.match("./index.html"); // ← FIX REAL
           }
         })
       );
