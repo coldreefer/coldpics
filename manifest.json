@@ -1,7 +1,8 @@
 {
+  "id": "/coldpics/",
   "name": "ColdPics",
   "short_name": "ColdPics",
-  "description": "Organizador profesional de fotos estilo UTIFUL. Carpeta real en /Pictures/ColdPics, cámara custom 800x1000 y almacenamiento directo.",
+  "description": "Organizador profesional de fotos estilo UTIFUL. Guarda fotos en /Pictures/ColdPics.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
