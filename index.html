@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ColdPics</title>
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+
+    <meta name="theme-color" content="#1e1e1e">
+</head>
+
+<body>
+
+    <!-- Top bar -->
+    <header class="topbar">
+        <h1>ColdPics</h1>
+        <button id="settingsBtn" class="icon-btn">⚙️</button>
+    </header>
+
+    <!-- Root selection message (first time only) -->
+    <div id="rootPrompt" class="prompt hidden">
+        <p>ColdPics necesita crear su carpeta raíz para guardar tus fotos.</p>
+        <button id="initRootBtn" class="action-btn">Crear carpeta ColdPics</button>
+    </div>
+
+    <!-- Folder section -->
+    <section id="folderSection" class="hidden">
+        <div class="section-header">
+            <h2>Carpetas</h2>
+            <button id="addFolderBtn" class="action-btn">+ Crear Carpeta</button>
+        </div>
+
+        <ul id="folderList" class="list"></ul>
+    </section>
+
+    <!-- File viewer -->
+    <section id="photosSection" class="hidden">
+        <div class="section-header">
+            <button id="backToFolders" class="action-btn">← Volver</button>
+            <h2 id="currentFolderName"></h2>
+            <button id="takePhotoBtn" class="action-btn camera-btn">📷 Tomar Foto</button>
+        </div>
+
+        <div id="photosGrid" class="photo-grid"></div>
+    </section>
+
+    <!-- Camera modal -->
+    <div id="cameraModal" class="camera-modal hidden">
+        <video id="cameraView" autoplay playsinline></video>
+        <button id="snapBtn" class="snap-btn">📸</button>
+        <button id="closeCameraBtn" class="close-camera">✖</button>
+    </div>
+
+    <!-- JS Files -->
+    <script src="app.js"></script>
+    <script src="camera.js"></script>
+
+</body>
+</html>
