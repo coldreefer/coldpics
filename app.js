@@ -1,13 +1,14 @@
 /* ============================================================
-   ColdPics - Lógica principal
-   app.js
-   - Crear carpeta raíz
-   - Crear subcarpetas
-   - Listar carpetas y fotos
-   - Guardar fotos reales en filesystem
+   ColdPics - File System + UI Material Files
+   Autor: ChatGPT (para Felipe Pardo)
+   Versión: 1.0
 ============================================================ */
 
-/* ==== REFERENCIAS A ELEMENTOS DE UI ==== */
+let rootHandle = null;
+let currentFolderHandle = null;
+let currentFolderName = "";
+
+/* DOM */
 const rootPrompt = document.getElementById("rootPrompt");
 const initRootBtn = document.getElementById("initRootBtn");
 
@@ -16,107 +17,185 @@ const folderList = document.getElementById("folderList");
 
 const photosSection = document.getElementById("photosSection");
 const photosGrid = document.getElementById("photosGrid");
+const currentFolderNameEl = document.getElementById("currentFolderName");
 
-const backToFolders = document.getElementById("backToFolders");
-const currentFolderName = document.getElementById("currentFolderName");
+const fabAddFolder = document.getElementById("fabAddFolder");
+const fabTakePhoto = document.getElementById("fabTakePhoto");
 
-const addFolderBtn = document.getElementById("addFolderBtn");
-const takePhotoBtn = document.getElementById("takePhotoBtn");
+const backFolders = document.getElementById("backFolders");
 
 
 /* ============================================================
-   1. CREAR CARPETA RAÍZ EN /Pictures/ColdPics
+   INICIO
 ============================================================ */
+window.addEventListener("DOMContentLoaded", async () => {
+    const savedRoot = await getSavedRoot();
 
-let rootHandle = null;
+    if (!savedRoot) {
+        showRootPrompt();
+        return;
+    }
 
-async function createRootFolder() {
+    rootHandle = savedRoot;
+
+    const ok = await verifyPermission(rootHandle);
+    if (!ok) {
+        showRootPrompt();
+        return;
+    }
+
+    loadFolders();
+});
+
+
+/* ============================================================
+   CREAR CARPETA RAÍZ
+============================================================ */
+initRootBtn.addEventListener("click", async () => {
     try {
-        const dir = await navigator.storage.getDirectory();
+        rootHandle = await window.showDirectoryPicker({
+            id: "coldpics-root",
+            mode: "readwrite"
+        });
 
-        const pics = await dir.getDirectoryHandle("Pictures", { create: true });
-        const cold = await pics.getDirectoryHandle("ColdPics", { create: true });
+        // Crea ColdPics dentro de Pictures si no existe
+        rootHandle = await rootHandle.getDirectoryHandle("ColdPics", { create: true });
 
-        rootHandle = cold;
+        await saveRoot(rootHandle);
+        showFolderList();
+        loadFolders();
 
-        localStorage.setItem("coldpics_root", "OK");
+    } catch (e) {
+        console.log("User canceled:", e);
+    }
+});
 
-        console.log("Carpeta ColdPics lista.");
+
+/* ============================================================
+   GUARDAR / CARGAR ROOT HANDLE
+============================================================ */
+async function saveRoot(handle) {
+    const granted = await verifyPermission(handle);
+    if (!granted) return;
+
+    const stored = await navigator.storage.persist();
+    console.log("Persisted storage:", stored);
+
+    localStorage.setItem("coldpics-root", await handleToKey(handle));
+}
+
+async function getSavedRoot() {
+    const key = localStorage.getItem("coldpics-root");
+    if (!key) return null;
+
+    try {
+        return await keyToHandle(key);
+    } catch {
+        return null;
+    }
+}
+
+
+/* ============================================================
+   PERMISOS
+============================================================ */
+async function verifyPermission(handle) {
+    if (!handle) return false;
+
+    const opts = { mode: "readwrite" };
+
+    if (await handle.queryPermission(opts) === "granted") {
         return true;
-    } catch (err) {
-        console.error("Error creando la carpeta raíz:", err);
-        alert("El navegador no permitió crear la carpeta.");
     }
+    if (await handle.requestPermission(opts) === "granted") {
+        return true;
+    }
+    return false;
 }
 
 
 /* ============================================================
-   2. LISTAR CARPETAS DENTRO DE ColdPics
+   UI — MOSTRAR: ROOT PROMPT / LISTA / FOTOS
 ============================================================ */
-
-async function listFolders() {
-    folderList.innerHTML = "";
-
-    for await (const [name, handle] of rootHandle.entries()) {
-        if (handle.kind === "directory") {
-            const li = document.createElement("li");
-            li.textContent = name;
-
-            li.onclick = () => openFolder(name);
-
-            folderList.appendChild(li);
-        }
-    }
+function showRootPrompt() {
+    rootPrompt.classList.remove("hidden");
+    folderSection.classList.add("hidden");
+    photosSection.classList.add("hidden");
+    fabAddFolder.classList.add("hidden");
+    fabTakePhoto.classList.add("hidden");
 }
 
-
-/* ============================================================
-   3. CREAR SUBCARPETA
-============================================================ */
-
-async function createSubfolder() {
-    const name = prompt("Nombre de la carpeta:");
-
-    if (!name) return;
-
-    try {
-        await rootHandle.getDirectoryHandle(name, { create: true });
-        listFolders();
-    } catch (err) {
-        console.error("Error creando carpeta:", err);
-    }
+function showFolderList() {
+    rootPrompt.classList.add("hidden");
+    folderSection.classList.remove("hidden");
+    photosSection.classList.add("hidden");
+    fabAddFolder.classList.remove("hidden");
+    fabTakePhoto.classList.add("hidden");
 }
 
-
-/* ============================================================
-   4. ABRIR UNA CARPETA Y VER FOTOS
-============================================================ */
-
-let currentFolder = null;
-
-async function openFolder(name) {
-    currentFolder = await rootHandle.getDirectoryHandle(name);
-
-    currentFolderName.textContent = name;
-    photosGrid.innerHTML = "";
-
+function showPhotos() {
     folderSection.classList.add("hidden");
     photosSection.classList.remove("hidden");
-
-    listPhotosInCurrentFolder();
+    fabAddFolder.classList.add("hidden");
+    fabTakePhoto.classList.remove("hidden");
 }
 
 
 /* ============================================================
-   5. LISTAR FOTOS DENTRO DE UNA CARPETA
+   LISTAR CARPETAS
 ============================================================ */
+async function loadFolders() {
+    folderList.innerHTML = "";
 
-async function listPhotosInCurrentFolder() {
+    try {
+        for await (const entry of rootHandle.values()) {
+            if (entry.kind === "directory") {
+                addFolderItem(entry.name);
+            }
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function addFolderItem(name) {
+    const li = document.createElement("li");
+    li.className = "folder-item";
+
+    li.innerHTML = `
+        <span class="material-symbols-rounded">folder</span>
+        ${name}
+    `;
+
+    li.addEventListener("click", () => openFolder(name));
+
+    folderList.appendChild(li);
+}
+
+
+/* ============================================================
+   ABRIR CARPETA → MOSTRAR FOTOS
+============================================================ */
+async function openFolder(folderName) {
+    currentFolderName = folderName;
+    currentFolderNameEl.textContent = folderName;
+
+    currentFolderHandle = await rootHandle.getDirectoryHandle(folderName);
+
+    showPhotos();
+    loadPhotos();
+}
+
+
+/* ============================================================
+   LISTAR FOTOS EN UNA CARPETA
+============================================================ */
+async function loadPhotos() {
     photosGrid.innerHTML = "";
 
-    for await (const [name, handle] of currentFolder.entries()) {
-        if (handle.kind === "file") {
-            const file = await handle.getFile();
+    for await (const entry of currentFolderHandle.values()) {
+        if (entry.kind === "file") {
+            const file = await entry.getFile();
             const url = URL.createObjectURL(file);
 
             const img = document.createElement("img");
@@ -129,69 +208,63 @@ async function listPhotosInCurrentFolder() {
 
 
 /* ============================================================
-   6. GUARDAR FOTO EN CARPETA REAL
+   FAB — CREAR NUEVA CARPETA
 ============================================================ */
+fabAddFolder.addEventListener("click", async () => {
+    const name = prompt("Nombre de la nueva carpeta:");
 
-async function savePhotoToFolder(blob) {
-    try {
-        const fileName = `IMG_${Date.now()}.jpg`;
+    if (!name || name.trim() === "") return;
 
-        const newFile = await currentFolder.getFileHandle(fileName, { create: true });
-        const writable = await newFile.createWritable();
+    await rootHandle.getDirectoryHandle(name, { create: true });
 
-        await writable.write(blob);
-        await writable.close();
+    loadFolders();
+});
 
-        await listPhotosInCurrentFolder();
 
-    } catch (err) {
-        console.error("Error guardando foto:", err);
-    }
+/* ============================================================
+   FAB — TOMAR FOTO
+============================================================ */
+fabTakePhoto.addEventListener("click", () => {
+    openCamera();
+});
+
+
+/* ============================================================
+   GUARDAR FOTO DESDE camera.js
+============================================================ */
+async function savePhoto(blob) {
+    if (!currentFolderHandle) return;
+
+    const filename = "IMG_" + Date.now() + ".jpg";
+    const fileHandle = await currentFolderHandle.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+
+    await writable.write(blob);
+    await writable.close();
+
+    loadPhotos();
 }
 
 
 /* ============================================================
-   7. EVENTOS DE BOTONES
+   VOLVER A LISTA DE CARPETAS
 ============================================================ */
-
-backToFolders.onclick = () => {
-    photosSection.classList.add("hidden");
-    folderSection.classList.remove("hidden");
-};
-
-addFolderBtn.onclick = () => createSubfolder();
-
-takePhotoBtn.onclick = async () => {
-    const blob = await openCameraAndTakePhoto();
-    if (blob) savePhotoToFolder(blob);
-};
-
-initRootBtn.onclick = async () => {
-    await createRootFolder();
-    initializeApp();
-};
+backFolders.addEventListener("click", () => {
+    showFolderList();
+    loadFolders();
+});
 
 
 /* ============================================================
-   8. INICIALIZAR APP
+   SERIALIZAR HANDLE
 ============================================================ */
-
-async function initializeApp() {
-    const rootExists = localStorage.getItem("coldpics_root");
-
-    if (!rootExists) {
-        rootPrompt.classList.remove("hidden");
-        return;
-    }
-
-    const dir = await navigator.storage.getDirectory();
-    const pics = await dir.getDirectoryHandle("Pictures");
-    rootHandle = await pics.getDirectoryHandle("ColdPics");
-
-    rootPrompt.classList.add("hidden");
-    folderSection.classList.remove("hidden");
-
-    listFolders();
+async function handleToKey(handle) {
+    return await window.showSaveFilePicker ?
+        await handle.requestPermission({ mode: "readwrite" }) && await handle.name :
+        handle.name;
 }
 
-initializeApp();
+async function keyToHandle(name) {
+    const dir = await window.showDirectoryPicker();
+    return await dir.getDirectoryHandle("ColdPics");
+}
